@@ -16,12 +16,8 @@
             padding: 10px;
             margin: 10px;
             display: inline-block;
-            position: relative;
         }
         .node-card button {
-            position: absolute;
-            top: 5px;
-            right: 5px;
             background-color: red;
             color: white;
             border: none;
@@ -32,7 +28,10 @@
             height: 500px; /* Fixed height */
             overflow: auto; /* Enable scrolling */
             border: 1px solid #ccc; /* Optional border */
-            position: relative;
+            display: flex;  /* Enable flexbox layout */
+            flex-wrap: wrap; /* Allow wrapping of items */
+            gap: 10px;      /* Add space between items */
+            position: relative; /* For potential future use */
         }
     </style>
 </head>
@@ -64,8 +63,6 @@
             orgChartData.forEach(node => {
                 const card = container.append("div")
                     .attr("class", "node-card")
-                    .style("top", `${Math.random() * 400}px`) // Random position for demo purposes
-                    .style("left", `${Math.random() * 400}px`) // Random position for demo purposes
                     .html(`
                         <strong>Name:</strong> ${node.name}<br>
                         <strong>ID:</strong> ${node.id}<br>
@@ -86,6 +83,14 @@
 
             orgChartData.push(newNode);
             buildOrgChart();
+            clearInputFields();
+        }
+
+        // Clear input fields after adding a node
+        function clearInputFields() {
+            document.getElementById('newName').value = '';
+            document.getElementById('newId').value = '';
+            document.getElementById('newManagerId').value = '';
         }
 
         // Delete a node
