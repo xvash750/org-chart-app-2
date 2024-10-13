@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
         body {
-            padding-top: 50px;
+            padding-top: 20px;
             font-family: Arial, sans-serif;
         }
         .node circle {
@@ -37,6 +37,15 @@
         }
         #csvUpload, #newNodeForm {
             margin: 20px 0;
+        }
+        #orgChartWrapper {
+            width: 500px;   /* Fixed width */
+            height: 500px;  /* Fixed height */
+            overflow: hidden; /* Hide overflow */
+            border: 1px solid #ccc; /* Optional border */
+        }
+        .zoom {
+            cursor: move;
         }
     </style>
 </head>
@@ -72,7 +81,9 @@
     </div>
 
     <!-- Org Chart Container -->
-    <div id="orgChartContainer"></div>
+    <div id="orgChartWrapper">
+        <div id="orgChartContainer"></div>
+    </div>
 
     <script>
         let orgChartData = [];
@@ -106,21 +117,32 @@
             // Clear the previous chart
             d3.select("#orgChartContainer").html("");
 
-            const width = 800;
-            const height = 600;
+            const margin = {top: 20, right: 90, bottom: 30, left: 90};
+            const width = 500 - margin.left - margin.right; // Fixed width
+            const height = 500 - margin.top - margin.bottom; // Fixed height
 
             const svg = d3.select("#orgChartContainer").append("svg")
-                .attr("width", width)
-                .attr("height", height)
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
                 .append("g")
-                .attr("transform", "translate(40,80)");
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // Enable zoom
+            const zoom = d3.zoom()
+                .scaleExtent([0.5, 2]) // Set zoom limits
+                .on("zoom", (event) => {
+                    svg.attr("transform", event.transform);
+                });
+
+            // Apply zoom to the SVG
+            svg.call(zoom);
 
             // Create a hierarchy from the CSV data
             const root = d3.stratify()
                 .id(d => d.id)
                 .parentId(d => d.managerId)(data);
 
-            const treeLayout = d3.tree().size([width - 160, height - 160]);
+            const treeLayout = d3.tree().size([height - 100, width - 160]);
             const treeData = treeLayout(root);
 
             // Links between nodes
@@ -163,23 +185,22 @@
 
         // Save changes from the modal
         function saveChanges() {
-        // Update the current node in orgChartData
+            // Update the current node in orgChartData
             const index = orgChartData.findIndex(node => node.id === currentNode.id);
             if (index !== -1) {
-        orgChartData[index].name = document.getElementById('editName').value;
-        orgChartData[index].managerId = document.getElementById('editManagerId').value;
-    }
+                orgChartData[index].name = document.getElementById('editName').value;
+                orgChartData[index].managerId = document.getElementById('editManagerId').value;
+            }
 
-    // Rebuild the org chart
-    buildOrgChart(orgChartData);
+            // Rebuild the org chart
+            buildOrgChart(orgChartData);
 
-    // Save updated data to localStorage
-    localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
+            // Save updated data to localStorage
+            localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
 
-    // Close the edit modal
-    closeEditModal();
-}
-
+            // Close the edit modal
+            closeEditModal();
+        }
 
         // Add a new node
         function addNewNode() {
