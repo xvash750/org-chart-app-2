@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Org Chart</title>
+    <title>Vertical Org Chart</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
@@ -39,7 +39,7 @@
             margin: 20px 0;
         }
         #orgChartWrapper {
-            width: 2000px;   /* Fixed width */
+            width: 500px;   /* Fixed width */
             height: 500px;  /* Fixed height */
             overflow: hidden; /* Hide overflow */
             border: 1px solid #ccc; /* Optional border */
@@ -51,7 +51,7 @@
 </head>
 <body>
 
-    <h1>Org Chart</h1>
+    <h1>Vertical Org Chart</h1>
 
     <!-- File Upload -->
     <div id="csvUpload">
@@ -142,7 +142,8 @@
                 .id(d => d.id)
                 .parentId(d => d.managerId)(data);
 
-            const treeLayout = d3.tree().size([height - 100, width - 160]);
+            // Set the tree layout for vertical orientation
+            const treeLayout = d3.tree().size([width - 160, height - 100]); // Reverse width and height for vertical layout
             const treeData = treeLayout(root);
 
             // Links between nodes
@@ -150,16 +151,16 @@
                 .data(treeData.links())
                 .enter().append("path")
                 .attr("class", "link")
-                .attr("d", d3.linkVertical()
-                    .x(d => d.y)
-                    .y(d => d.x));
+                .attr("d", d3.linkVertical() // Change to vertical links
+                    .x(d => d.x)
+                    .y(d => d.y));
 
             // Nodes
             const node = svg.selectAll(".node")
                 .data(treeData.descendants())
                 .enter().append("g")
                 .attr("class", "node")
-                .attr("transform", d => `translate(${d.y},${d.x})`)
+                .attr("transform", d => `translate(${d.x},${d.y})`) // Change to x and y
                 .on("click", d => openEditModal(d.data));
 
             node.append("circle").attr("r", 10);
