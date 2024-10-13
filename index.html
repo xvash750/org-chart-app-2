@@ -14,8 +14,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             padding: 10px;
-            margin: 10px;
-            display: inline-block;
+            text-align: center;
         }
         .node-card button {
             background-color: red;
@@ -28,10 +27,6 @@
             height: 500px; /* Fixed height */
             overflow: auto; /* Enable scrolling */
             border: 1px solid #ccc; /* Optional border */
-            display: flex;  /* Enable flexbox layout */
-            flex-wrap: wrap; /* Allow wrapping of items */
-            gap: 10px;      /* Add space between items */
-            position: relative; /* For potential future use */
         }
     </style>
 </head>
@@ -50,27 +45,68 @@
     <button onclick="addNewNode()">Add Node</button>
 
     <!-- Org Chart Container -->
-    <div id="orgChartContainer"></div>
+    <svg id="orgChartContainer" width="500" height="500"></svg>
 
     <script>
-        let orgChartData = [];
+        let orgChartData = []; // Array to hold the nodes
 
         // Function to build the org chart
         function buildOrgChart() {
-            const container = d3.select("#orgChartContainer");
-            container.html(""); // Clear previous chart
+            const svg = d3.select("#orgChartContainer");
+            svg.selectAll("*").remove(); // Clear previous chart
 
-            orgChartData.forEach(node => {
-                const card = container.append("div")
-                    .attr("class", "node-card")
-                    .html(`
-                        <strong>Name:</strong> ${node.name}<br>
-                        <strong>ID:</strong> ${node.id}<br>
-                        <strong>Manager ID:</strong> ${node.managerId}<br>
-                        <button onclick="deleteNode('${node.id}')">Delete</button>
-                        <button onclick="openEditModal('${node.id}')">Edit</button>
-                    `);
-            });
+            // Create a root node
+            const root = d3.stratify()
+                .id(d => d.id)
+                .parentId(d => d.managerId)(orgChartData);
+
+            // Create a tree layout
+            const treeLayout = d3.tree().size([480, 400]); // Size of the tree
+            treeLayout(root);
+
+            // Draw the links
+            svg.selectAll('.link')
+                .data(root.links())
+                .enter()
+                .append('line')
+                .attr('class', 'link')
+                .attr('x1', d => d.source.y)
+                .attr('y1', d => d.source.x)
+                .attr('x2', d => d.target.y)
+                .attr('y2', d => d.target.x)
+                .attr('stroke', '#ccc');
+
+            // Draw the nodes
+            const nodeGroup = svg.selectAll('.node')
+                .data(root.descendants())
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.y},${d.x})`); // Position nodes
+
+            nodeGroup.append('rect')
+                .attr('class', 'node-card')
+                .attr('width', 150)
+                .attr('height', 50)
+                .attr('fill', '#fff');
+
+            nodeGroup.append('text')
+                .attr('dy', '1.5em')
+                .attr('x', 75) // Center text
+                .attr('text-anchor', 'middle')
+                .text(d => d.data.name);
+
+            // Add buttons to edit and delete nodes
+            nodeGroup.append("foreignObject")
+                .attr("width", 150)
+                .attr("height", 50)
+                .attr("y", 20)
+                .html(d => `
+                    <div>
+                        <button onclick="deleteNode('${d.data.id}')">Delete</button>
+                        <button onclick="openEditModal('${d.data.id}')">Edit</button>
+                    </div>
+                `);
         }
 
         // Add a new node
