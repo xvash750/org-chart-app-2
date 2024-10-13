@@ -7,9 +7,6 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
-        body {
-            padding-top: 200px; /* This pushes the body content down */
-        }
         .node circle {
             fill: steelblue;
             stroke: #fff;
@@ -27,12 +24,9 @@
     <input type="file" id="upload" />
     <svg width="960" height="600"></svg>
     <script>
-       const svg = d3.select("body").append("svg")
-    .attr("width", width)
-    .attr("height", height)
-    .append("g")
-    .attr("transform", "translate(40,80)");  // Increase the second value to move the chart down
-
+        const svg = d3.select("svg"),
+              width = +svg.attr("width"),
+              height = +svg.attr("height");
 
         function buildOrgChart(data) {
             const root = d3.stratify()
