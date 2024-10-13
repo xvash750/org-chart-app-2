@@ -163,13 +163,23 @@
 
         // Save changes from the modal
         function saveChanges() {
-            currentNode.name = document.getElementById('editName').value;
-            currentNode.managerId = document.getElementById('editManagerId').value;
+        // Update the current node in orgChartData
+            const index = orgChartData.findIndex(node => node.id === currentNode.id);
+            if (index !== -1) {
+        orgChartData[index].name = document.getElementById('editName').value;
+        orgChartData[index].managerId = document.getElementById('editManagerId').value;
+    }
 
-            buildOrgChart(orgChartData);
-            localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
-            closeEditModal();
-        }
+    // Rebuild the org chart
+    buildOrgChart(orgChartData);
+
+    // Save updated data to localStorage
+    localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
+
+    // Close the edit modal
+    closeEditModal();
+}
+
 
         // Add a new node
         function addNewNode() {
