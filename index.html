@@ -8,7 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
         body {
-            padding-top: 50px; /* This pushes the body content down */
+            padding-top: 50px;
+            font-family: Arial, sans-serif;
         }
         .node circle {
             fill: steelblue;
@@ -20,63 +21,169 @@
             stroke: #ccc;
             stroke-width: 2px;
         }
+        #editModal {
+            display: none;
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 1px solid #ccc;
+            padding: 20px;
+            z-index: 10;
+        }
+        #editModal input {
+            margin: 5px 0;
+        }
+        #csvUpload, #newNodeForm {
+            margin: 20px 0;
+        }
     </style>
 </head>
-
-
 <body>
-    <input type="file" id="upload" />
-    <svg width="960" height="600"></svg>
-    <script>
-        const svg = d3.select("svg"),
-              width = +svg.attr("width"),
-              height = +svg.attr("height");
 
+    <h1>Org Chart</h1>
+
+    <!-- File Upload -->
+    <div id="csvUpload">
+        <input type="file" id="uploadCSV" accept=".csv">
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal">
+        <label>Name:</label>
+        <input type="text" id="editName"><br>
+        <label>Manager ID:</label>
+        <input type="text" id="editManagerId"><br>
+        <button onclick="saveChanges()">Save Changes</button>
+        <button onclick="closeEditModal()">Cancel</button>
+    </div>
+
+    <!-- Add New Node Form -->
+    <div id="newNodeForm">
+        <h3>Add New Node</h3>
+        <label>Name:</label>
+        <input type="text" id="newName"><br>
+        <label>ID:</label>
+        <input type="text" id="newId"><br>
+        <label>Manager ID:</label>
+        <input type="text" id="newManagerId"><br>
+        <button onclick="addNewNode()">Add Node</button>
+    </div>
+
+    <!-- Org Chart Container -->
+    <div id="orgChartContainer"></div>
+
+    <script>
+        let orgChartData = [];
+        let currentNode = null;
+
+        // Handle CSV file upload
+        document.getElementById('uploadCSV').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                complete: function(results) {
+                    orgChartData = results.data;
+                    localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
+                    buildOrgChart(orgChartData);
+                }
+            });
+        });
+
+        // Load saved data from localStorage on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedData = localStorage.getItem('orgChartData');
+            if (savedData) {
+                orgChartData = JSON.parse(savedData);
+                buildOrgChart(orgChartData);
+            }
+        });
+
+        // Function to build the org chart using D3.js
         function buildOrgChart(data) {
+            // Clear the previous chart
+            d3.select("#orgChartContainer").html("");
+
+            const width = 800;
+            const height = 600;
+
+            const svg = d3.select("#orgChartContainer").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", "translate(40,80)");
+
+            // Create a hierarchy from the CSV data
             const root = d3.stratify()
                 .id(d => d.id)
-                .parentId(d => d.managerId)
-                (data);
+                .parentId(d => d.managerId)(data);
 
-            const treeLayout = d3.tree().size([width, height - 200]);
-            treeLayout(root);
+            const treeLayout = d3.tree().size([width - 160, height - 160]);
+            const treeData = treeLayout(root);
 
-            svg.selectAll(".link")
-                .data(root.links())
+            // Links between nodes
+            const link = svg.selectAll(".link")
+                .data(treeData.links())
                 .enter().append("path")
                 .attr("class", "link")
                 .attr("d", d3.linkHorizontal()
-                    .x(d => d.x)
-                    .y(d => d.y)
-                );
+                    .x(d => d.y)
+                    .y(d => d.x));
 
+            // Nodes
             const node = svg.selectAll(".node")
-                .data(root.descendants())
+                .data(treeData.descendants())
                 .enter().append("g")
                 .attr("class", "node")
-                .attr("transform", d => `translate(${d.x},${d.y})`);
+                .attr("transform", d => `translate(${d.y},${d.x})`)
+                .on("click", d => openEditModal(d.data));
 
-            node.append("circle")
-                .attr("r", 20);
-
+            node.append("circle").attr("r", 10);
             node.append("text")
-                .attr("dy", -25)
-                .style("text-anchor", "middle")
+                .attr("dy", ".35em")
+                .attr("x", d => d.children ? -13 : 13)
+                .attr("text-anchor", d => d.children ? "end" : "start")
                 .text(d => d.data.name);
         }
 
-        document.getElementById("upload").addEventListener("change", function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                Papa.parse(file, {
-                    header: true,
-                    dynamicTyping: true,
-                    complete: function(results) {
-                        buildOrgChart(results.data);
-                    }
-                });
-            }
-        });
+        // Open the edit modal
+        function openEditModal(nodeData) {
+            currentNode = nodeData;
+            document.getElementById('editName').value = nodeData.name;
+            document.getElementById('editManagerId').value = nodeData.managerId;
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        // Close the edit modal
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Save changes from the modal
+        function saveChanges() {
+            currentNode.name = document.getElementById('editName').value;
+            currentNode.managerId = document.getElementById('editManagerId').value;
+
+            buildOrgChart(orgChartData);
+            localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
+            closeEditModal();
+        }
+
+        // Add a new node
+        function addNewNode() {
+            const newNode = {
+                id: document.getElementById('newId').value,
+                name: document.getElementById('newName').value,
+                managerId: document.getElementById('newManagerId').value
+            };
+
+            orgChartData.push(newNode);
+            buildOrgChart(orgChartData);
+            localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
+        }
     </script>
+
 </body>
 </html>
