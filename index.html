@@ -3,204 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vertical Org Chart</title>
+    <title>Org Chart with CRUD Operations</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
         body {
             padding-top: 20px;
             font-family: Arial, sans-serif;
         }
-        .node circle {
-            fill: steelblue;
-            stroke: #fff;
-            stroke-width: 3px;
-        }
-        .link {
-            fill: none;
-            stroke: #ccc;
-            stroke-width: 2px;
-        }
-        #editModal {
-            display: none;
-            position: fixed;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
+        .node-card {
             border: 1px solid #ccc;
-            padding: 20px;
-            z-index: 10;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px;
+            display: inline-block;
+            position: relative;
         }
-        #editModal input {
-            margin: 5px 0;
+        .node-card button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
         }
-        #csvUpload, #newNodeForm {
-            margin: 20px 0;
-        }
-        #orgChartWrapper {
-            width: 500px;   /* Fixed width */
-            height: 500px;  /* Fixed height */
-            overflow: hidden; /* Hide overflow */
+        #orgChartContainer {
+            width: 500px;  /* Fixed width */
+            height: 500px; /* Fixed height */
+            overflow: auto; /* Enable scrolling */
             border: 1px solid #ccc; /* Optional border */
-        }
-        .zoom {
-            cursor: move;
+            position: relative;
         }
     </style>
 </head>
 <body>
 
-    <h1>Vertical Org Chart</h1>
+    <h1>Org Chart</h1>
 
-    <!-- File Upload -->
-    <div id="csvUpload">
-        <input type="file" id="uploadCSV" accept=".csv">
-    </div>
-
-    <!-- Edit Modal -->
-    <div id="editModal">
-        <label>Name:</label>
-        <input type="text" id="editName"><br>
-        <label>Manager ID:</label>
-        <input type="text" id="editManagerId"><br>
-        <button onclick="saveChanges()">Save Changes</button>
-        <button onclick="closeEditModal()">Cancel</button>
-    </div>
-
-    <!-- Add New Node Form -->
-    <div id="newNodeForm">
-        <h3>Add New Node</h3>
-        <label>Name:</label>
-        <input type="text" id="newName"><br>
-        <label>ID:</label>
-        <input type="text" id="newId"><br>
-        <label>Manager ID:</label>
-        <input type="text" id="newManagerId"><br>
-        <button onclick="addNewNode()">Add Node</button>
-    </div>
+    <!-- Add Node Form -->
+    <h3>Add New Node</h3>
+    <label>Name:</label>
+    <input type="text" id="newName"><br>
+    <label>ID:</label>
+    <input type="text" id="newId"><br>
+    <label>Manager ID:</label>
+    <input type="text" id="newManagerId"><br>
+    <button onclick="addNewNode()">Add Node</button>
 
     <!-- Org Chart Container -->
-    <div id="orgChartWrapper">
-        <div id="orgChartContainer"></div>
-    </div>
+    <div id="orgChartContainer"></div>
 
     <script>
         let orgChartData = [];
-        let currentNode = null;
 
-        // Handle CSV file upload
-        document.getElementById('uploadCSV').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            Papa.parse(file, {
-                header: true,
-                dynamicTyping: true,
-                complete: function(results) {
-                    orgChartData = results.data;
-                    localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
-                    buildOrgChart(orgChartData);
-                }
+        // Function to build the org chart
+        function buildOrgChart() {
+            const container = d3.select("#orgChartContainer");
+            container.html(""); // Clear previous chart
+
+            orgChartData.forEach(node => {
+                const card = container.append("div")
+                    .attr("class", "node-card")
+                    .style("top", `${Math.random() * 400}px`) // Random position for demo purposes
+                    .style("left", `${Math.random() * 400}px`) // Random position for demo purposes
+                    .html(`
+                        <strong>Name:</strong> ${node.name}<br>
+                        <strong>ID:</strong> ${node.id}<br>
+                        <strong>Manager ID:</strong> ${node.managerId}<br>
+                        <button onclick="deleteNode('${node.id}')">Delete</button>
+                        <button onclick="openEditModal('${node.id}')">Edit</button>
+                    `);
             });
-        });
-
-        // Load saved data from localStorage on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedData = localStorage.getItem('orgChartData');
-            if (savedData) {
-                orgChartData = JSON.parse(savedData);
-                buildOrgChart(orgChartData);
-            }
-        });
-
-        // Function to build the org chart using D3.js
-        function buildOrgChart(data) {
-            // Clear the previous chart
-            d3.select("#orgChartContainer").html("");
-
-            const margin = {top: 20, right: 90, bottom: 30, left: 90};
-            const width = 500 - margin.left - margin.right; // Fixed width
-            const height = 500 - margin.top - margin.bottom; // Fixed height
-
-            const svg = d3.select("#orgChartContainer").append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", `translate(${margin.left},${margin.top})`);
-
-            // Enable zoom
-            const zoom = d3.zoom()
-                .scaleExtent([0.5, 2]) // Set zoom limits
-                .on("zoom", (event) => {
-                    svg.attr("transform", event.transform);
-                });
-
-            // Apply zoom to the SVG
-            svg.call(zoom);
-
-            // Create a hierarchy from the CSV data
-            const root = d3.stratify()
-                .id(d => d.id)
-                .parentId(d => d.managerId)(data);
-
-            // Set the tree layout for vertical orientation
-            const treeLayout = d3.tree().size([width - 160, height - 100]); // Reverse width and height for vertical layout
-            const treeData = treeLayout(root);
-
-            // Links between nodes
-            const link = svg.selectAll(".link")
-                .data(treeData.links())
-                .enter().append("path")
-                .attr("class", "link")
-                .attr("d", d3.linkVertical() // Change to vertical links
-                    .x(d => d.x)
-                    .y(d => d.y));
-
-            // Nodes
-            const node = svg.selectAll(".node")
-                .data(treeData.descendants())
-                .enter().append("g")
-                .attr("class", "node")
-                .attr("transform", d => `translate(${d.x},${d.y})`) // Change to x and y
-                .on("click", d => openEditModal(d.data));
-
-            node.append("circle").attr("r", 10);
-            node.append("text")
-                .attr("dy", ".35em")
-                .attr("x", d => d.children ? -13 : 13)
-                .attr("text-anchor", d => d.children ? "end" : "start")
-                .text(d => d.data.name);
-        }
-
-        // Open the edit modal
-        function openEditModal(nodeData) {
-            currentNode = nodeData;
-            document.getElementById('editName').value = nodeData.name;
-            document.getElementById('editManagerId').value = nodeData.managerId;
-            document.getElementById('editModal').style.display = 'block';
-        }
-
-        // Close the edit modal
-        function closeEditModal() {
-            document.getElementById('editModal').style.display = 'none';
-        }
-
-        // Save changes from the modal
-        function saveChanges() {
-            // Update the current node in orgChartData
-            const index = orgChartData.findIndex(node => node.id === currentNode.id);
-            if (index !== -1) {
-                orgChartData[index].name = document.getElementById('editName').value;
-                orgChartData[index].managerId = document.getElementById('editManagerId').value;
-            }
-
-            // Rebuild the org chart
-            buildOrgChart(orgChartData);
-
-            // Save updated data to localStorage
-            localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
-
-            // Close the edit modal
-            closeEditModal();
         }
 
         // Add a new node
@@ -212,8 +85,28 @@
             };
 
             orgChartData.push(newNode);
-            buildOrgChart(orgChartData);
-            localStorage.setItem('orgChartData', JSON.stringify(orgChartData));
+            buildOrgChart();
+        }
+
+        // Delete a node
+        function deleteNode(nodeId) {
+            orgChartData = orgChartData.filter(node => node.id !== nodeId);
+            buildOrgChart();
+        }
+
+        // Open the edit modal
+        function openEditModal(nodeId) {
+            const nodeToEdit = orgChartData.find(node => node.id === nodeId);
+            if (nodeToEdit) {
+                const newName = prompt("Edit Name:", nodeToEdit.name);
+                const newManagerId = prompt("Edit Manager ID:", nodeToEdit.managerId);
+
+                if (newName !== null && newManagerId !== null) {
+                    nodeToEdit.name = newName;
+                    nodeToEdit.managerId = newManagerId;
+                    buildOrgChart();
+                }
+            }
         }
     </script>
 
