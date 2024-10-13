@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Org Chart</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        .node circle {
+            fill: steelblue;
+            stroke: #fff;
+            stroke-width: 3px;
+        }
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="upload" />
+    <svg width="960" height="600"></svg>
+    <script>
+        const svg = d3.select("svg"),
+              width = +svg.attr("width"),
+              height = +svg.attr("height");
+
+        function buildOrgChart(data) {
+            const root = d3.stratify()
+                .id(d => d.id)
+                .parentId(d => d.managerId)
+                (data);
+
+            const treeLayout = d3.tree().size([width, height - 200]);
+            treeLayout(root);
+
+            svg.selectAll(".link")
+                .data(root.links())
+                .enter().append("path")
+                .attr("class", "link")
+                .attr("d", d3.linkHorizontal()
+                    .x(d => d.x)
+                    .y(d => d.y)
+                );
+
+            const node = svg.selectAll(".node")
+                .data(root.descendants())
+                .enter().append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            node.append("circle")
+                .attr("r", 20);
+
+            node.append("text")
+                .attr("dy", -25)
+                .style("text-anchor", "middle")
+                .text(d => d.data.name);
+        }
+
+        document.getElementById("upload").addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        buildOrgChart(results.data);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
